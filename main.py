@@ -6,6 +6,9 @@ from io import BytesIO
 from md2pdf.core import md2pdf
 from dotenv import load_dotenv
 from download import download_video_audio, delete_download
+from fastapi import FastAPI
+from fastapi_app import app as fastapi_app
+from starlette.middleware.wsgi import WSGIMiddleware
 
 load_dotenv()
 
@@ -27,6 +30,10 @@ st.set_page_config(
     page_title="ScribeWizard",
     page_icon="🧙‍♂️",
 )
+
+# Mount FastAPI app
+fastapi_app = FastAPI()
+fastapi_app.mount("/fastapi", WSGIMiddleware(fastapi_app))
       
 class GenerationStatistics:
     def __init__(self, input_time=0,output_time=0,input_tokens=0,output_tokens=0,total_time=0,model_name="llama3-8b-8192"):
@@ -357,20 +364,23 @@ try:
         else:
             raise ValueError("Please generate content first before downloading the notes.")
 
-    input_method = st.radio("Choose input method:", ["Upload audio file", "YouTube link"])
+    input_method = st.radio("Choose input method:", ["Upload audio file", "YouTube link", "Arxiv link"])
     audio_file = None
     youtube_link = None
+    arxiv_link = None
     groq_input_key = None
     with st.form("groqform"):
         if not GROQ_API_KEY:
             groq_input_key = st.text_input("Enter your Groq API Key (gsk_yA...):", "", type="password")
         
-        # Add radio button to choose between file upload and YouTube link
+        # Add radio button to choose between file upload, YouTube link, and Arxiv link
         
         if input_method == "Upload audio file":
             audio_file = st.file_uploader("Upload an audio file", type=["mp3", "wav", "m4a"]) # TODO: Add a max size
-        else:
+        elif input_method == "YouTube link":
             youtube_link = st.text_input("Enter YouTube link:", "")
+        else:
+            arxiv_link = st.text_input("Enter Arxiv link:", "")
 
         # Generate button
         submitted = st.form_submit_button(st.session_state.button_text, on_click=disable, disabled=st.session_state.button_disabled)
@@ -407,6 +417,8 @@ try:
                 st.error("Please upload an audio file")
             elif input_method == "YouTube link" and not youtube_link:
                 st.error("Please enter a YouTube link")
+            elif input_method == "Arxiv link" and not arxiv_link:
+                st.error("Please enter an Arxiv link")
             else:
                 st.session_state.button_disabled = True
                 # Show temporary message before transcription is generated and statistics show
@@ -434,6 +446,29 @@ try:
                     audio_file.name = os.path.basename(audio_file_path)  # Set the file name
                     delete_download(audio_file_path)
                 clear_download_status()
+
+            if input_method == "Arxiv link":
+                display_status("Downloading PDF from Arxiv link ....")
+                response = requests.post("http://localhost:8000/download_pdf", json={"url": arxiv_link})
+                if response.status_code == 200:
+                    pdf_content = response.json().get("pdf_content")
+                    display_status("Analyzing PDF and generating summary ....")
+                    summary_response = requests.post("http://localhost:8000/generate_summary", json={"pdf_url": arxiv_link})
+                    if summary_response.status_code == 200:
+                        summary = summary_response.json().get("summary")
+                        display_status("Creating LinkedIn post ....")
+                        linkedin_response = requests.post("http://localhost:8000/create_linkedin_post", json={"summary": summary})
+                        if linkedin_response.status_code == 200:
+                            linkedin_post = linkedin_response.json().get("linkedin_post")
+                            st.write("### Generated LinkedIn Post")
+                            st.write(linkedin_post)
+                        else:
+                            st.error("Failed to create LinkedIn post. Please try again.")
+                    else:
+                        st.error("Failed to generate summary. Please try again.")
+                else:
+                    st.error("Failed to download PDF from Arxiv link. Please try again.")
+                clear_status()
 
             if not GROQ_API_KEY:
                 st.session_state.groq = Groq(api_key=groq_input_key)

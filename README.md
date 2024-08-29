@@ -101,12 +101,91 @@ python3 -m streamlit run main.py
 
 ## Details
 
+### Using FastAPI Endpoints
+
+ScribeWizard now includes a FastAPI layer to download PDFs from arxiv links, analyze them to generate summaries, and create LinkedIn posts based on the summaries.
+
+#### Endpoints
+
+1. **Download PDF from arxiv link**
+
+   - **URL:** `/download_pdf`
+   - **Method:** `POST`
+   - **Request Body:**
+     ```json
+     {
+       "url": "arxiv_link"
+     }
+     ```
+   - **Response:**
+     ```json
+     {
+       "pdf_content": "base64_encoded_pdf_content"
+     }
+     ```
+
+2. **Generate summary from PDF**
+
+   - **URL:** `/generate_summary`
+   - **Method:** `POST`
+   - **Request Body:**
+     ```json
+     {
+       "pdf_url": "pdf_url"
+     }
+     ```
+   - **Response:**
+     ```json
+     {
+       "summary": "generated_summary"
+     }
+     ```
+
+3. **Create LinkedIn post from summary**
+
+   - **URL:** `/create_linkedin_post`
+   - **Method:** `POST`
+   - **Request Body:**
+     ```json
+     {
+       "summary": "generated_summary"
+     }
+     ```
+   - **Response:**
+     ```json
+     {
+       "linkedin_post": "generated_linkedin_post"
+     }
+     ```
+
+#### Example Usage
+
+To use the FastAPI endpoints, you can use tools like `curl` or Postman to send requests to the endpoints.
+
+Example using `curl`:
+
+1. **Download PDF from arxiv link**
+   ```sh
+   curl -X POST "http://localhost:8000/download_pdf" -H "Content-Type: application/json" -d '{"url": "arxiv_link"}'
+   ```
+
+2. **Generate summary from PDF**
+   ```sh
+   curl -X POST "http://localhost:8000/generate_summary" -H "Content-Type: application/json" -d '{"pdf_url": "pdf_url"}'
+   ```
+
+3. **Create LinkedIn post from summary**
+   ```sh
+   curl -X POST "http://localhost:8000/create_linkedin_post" -H "Content-Type: application/json" -d '{"summary": "generated_summary"}'
+   ```
 
 ### Technologies
 
 - Streamlit
 - Llama3 on Groq Cloud
 - Whisper-large on Groq Cloud
+- FastAPI
+- pdfminer.six
 
 ### Limitations
 
